@@ -1,0 +1,35 @@
+use std:string [parse_int]
+use std:math:i64 [abs]
+use std:list [zip, sortBy, fold]
+
+fn part1 input as string -> int = 
+  let (lhs, rhs) = parse input in 
+    zip (sortBy #> lhs) (sortBy #> rhs)
+    . map #(\(ln, rn) -> abs (ln - rn))
+    . sum
+    
+fn part2 input as string -> int = 
+  let (lhs, rhs) = parse input in
+    calculateScore lhs rhs
+
+fn calculateScore lhs rhs as [int], [int] -> int =
+  fold #similarity 0 lhs
+
+ where
+  fn similarity score n as int, int -> int =
+    score + fold #(occurances n) 0 rhs * n
+
+  fn occurances x times y =
+    if x == y
+      then 1 + times
+      else times
+
+fn parse input as string -> ([int], [int]) =
+  match input
+  | #(/= ' ')@x _ _ _ #(/= '\n')@y "\n" xs ->
+    let (lhs, rhs) = parse xs 
+     in (x . parse_int : lhs, y . parse_int : rhs)
+
+  | "" -> ([], [])
+
+  | other -> io:crash ("parse error: " <> (other . take 10))

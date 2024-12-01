@@ -1,0 +1,16 @@
+use std:io
+use std:fs
+
+fn workdir = "/home/simon/code/aoc2024/"
+
+fn input = "d1/real"
+use d1 solution
+
+fn read_input = 
+  let path = workdir <> "inputs/" <> input
+   in fs:readFileAt path . or_crash ("could not read input file " <> path)
+
+fn main =
+  let input = read_input in
+    do io:println ("part 1: " <> solution:part1 input) then
+       io:println ("part 2: " <> solution:part2 input)
