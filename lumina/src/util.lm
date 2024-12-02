@@ -1,0 +1,6 @@
+
+fn splitOn c str as u8, string -> [string] =
+  match str
+  | "" -> [] // TODO: this shouldn't need to exist. There's a bug in our extractor impl
+  | #(/= c)@segment _ xs -> segment : splitOn c xs
+  | _ -> []

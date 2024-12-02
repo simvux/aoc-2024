@@ -1,0 +1,60 @@
+use std:string [parse_int]
+use std:char [is_number]
+use project:util [splitOn]
+use std:list [from_range]
+use std:io
+
+type Direction = Increasing int | Decreasing int | Unknown int | None
+
+fn parse input as string -> [[int]] =
+  splitOn '\n' input . map #(\line -> splitOn ' ' line . map #parse_int)
+
+fn part1 input as string -> uint =
+  let levels = parse input in
+    levels . count #(\line -> is_safe -1 None line)
+
+fn part2 input as string -> uint = 
+  let levels = parse input in
+    levels . count #check_safety_with_dampener
+
+fn check_safety_with_dampener line as [int] -> bool = 
+  from_range
+    (0, (line . len) + 1)
+    #(\i -> i as int)
+  . any #(\blocked -> is_safe blocked None line)
+
+fn is_safe blocked dir level as int, Direction, [int] -> bool =
+  match level
+  | [x : xs] -> 
+    if blocked == 0
+      then is_safe -1 dir xs
+      else
+        match check_dir dir x
+        | Just ndir -> is_safe (blocked - 1) ndir xs
+        | Nothing   -> false
+  | [] -> true
+
+
+fn check_dir dir x as Direction, int -> Maybe Direction = 
+  match dir
+  | None -> Just (Unknown x)
+  | Unknown n -> 
+    if diff_is_ok x n then 
+      if x > n
+        then Just (Increasing x) 
+        else Just (Decreasing x) 
+    else
+      Nothing
+  | Increasing n ->
+    if diff_is_ok x n && x > n
+      then Just (Increasing x) 
+      else Nothing
+  | Decreasing n ->
+    if diff_is_ok x n && x < n
+      then Just (Decreasing x)
+      else Nothing
+
+fn diff_is_ok x y as int, int -> bool =
+  let diff = (x - y) . abs
+   in diff /= 0 && diff < 4
+
