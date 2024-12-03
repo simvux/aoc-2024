@@ -1,0 +1,35 @@
+use std:char [is_number]
+use std:string [parse_int]
+
+type Ins = Enable bool | Mul int int 
+
+fn parse input as string -> [Ins] =
+  match input
+  | "do()" xs    -> Enable true  : parse xs
+  | "don't()" xs -> Enable false : parse xs
+  | "mul(" #is_number@x "," #is_number@y ")" xs -> Mul (parse_int x) (parse_int y) : parse xs
+  | ""   -> []
+  | x xs -> parse xs
+  | _    -> []
+
+fn part1 input as string -> int = 
+  parse input
+  . filter_map #as_mul
+  . map #(\(x, y) -> x * y) . sum
+ where
+  fn as_mul ins =
+    match ins
+    | Mul x y -> Just (x, y)
+    | _ -> Nothing
+
+fn part2 input as string -> int = 
+  let (sum, _) = parse input . fold #eval (0, true)
+   in sum
+ where
+  fn eval (acc, enabled) ins as (int, bool), Ins -> (int, bool) =
+    match ins
+    | Enable e -> (acc, e)
+    | Mul x y  -> 
+      if enabled
+        then (acc + x * y, enabled)
+        else (acc, enabled)
