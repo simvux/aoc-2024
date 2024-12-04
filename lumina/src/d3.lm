@@ -14,7 +14,7 @@ fn parse input as string -> [Ins] =
 
 fn part1 input as string -> int = 
   parse input
-  . filter_map #as_mul
+  . keep_map #as_mul
   . map #(\(x, y) -> x * y) . sum
  where
   fn as_mul ins =

@@ -1,0 +1,54 @@
+use project:util [splitOn]
+use project:matrix [Matrix, line]
+use std:io
+use std:list [List [Slice], toVec]
+use std:list:vec [Vec]
+
+fn part1 input as string -> uint =
+  let m = parse input
+   in m . fold #(find_xmas m) 0
+
+fn part2 input as string -> uint = 
+  let m = parse input
+   in m . fold #(find_two_x_mas m) 0
+
+fn find_two_x_mas m acc (x, y) c
+    as Matrix u8, uint, (int, int), u8 -> uint =
+  let from_this_point = 
+    [
+      [(x - 1, y + 1), (x, y), (x + 1, y - 1)], // ↖
+      [(x - 1, y - 1), (x, y), (x + 1, y + 1)], // ↙
+      [(x + 1, y - 1), (x, y), (x - 1, y + 1)], // ↗
+      [(x + 1, y + 1), (x, y), (x - 1, y - 1)], // ↘
+    ]
+    . map #(\coords -> coords . map #(\coord -> m . gets coord . or #0))
+    . count #(== ['M', 'A', 'S'])
+  in 
+    if from_this_point == 2
+      then acc + 1
+      else acc
+
+fn find_xmas m acc (x, y) _
+    as Matrix u8, uint, (int, int), u8 -> uint =
+  let from_this_point = 
+    [
+        (1, 0, 4),   // →
+        (-1, 0, 4),  // ←
+        (0, -1, 4),  // ↑
+        (0, 1, 4),   // ↓
+        (1, 1, 4),   // ↗
+        (1, -1, 4),  // ↘
+        (-1, -1, 4), // ↙
+        (-1, 1, 4),  // ↖
+      ]
+    . map #(\offset -> line (x, y) offset ' ' m)
+    . count #(== ['X', 'M', 'A', 'S'])
+  in 
+    from_this_point + acc
+
+fn parse input as string -> Matrix u8 =
+  input
+  . splitOn '\n'
+  . map #(\{inner} -> toVec inner)
+  . toVec
+  . matrix:fromLines
