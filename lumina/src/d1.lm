@@ -4,7 +4,7 @@ use std:list [zip, sortBy, fold]
 
 fn part1 input as string -> int = 
   let (lhs, rhs) = parse input in 
-    zip (sortBy #> lhs) (sortBy #> rhs)
+    zip (sortBy #Compare:compare lhs) (sortBy #Compare:compare rhs)
     . map #(\(ln, rn) -> abs (ln - rn))
     . sum
     

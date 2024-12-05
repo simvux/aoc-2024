@@ -1,0 +1,68 @@
+use project:util [splitOn]
+use std:string [parse_int]
+use std:char [is_number]
+use std:list:vec [Vec]
+
+alias Rules = [(int, int)]
+
+type Manual {
+  rules   Rules
+  updates [Vec int]
+}
+
+fn parse input as string -> Manual =
+  match input
+  | #is_number@x "|" #is_number@y "\n" xs -> 
+    { parse xs ~ rules @ rules = (parse_int x, parse_int y) : rules }
+
+  | "\n" xs -> 
+    { rules = [],
+      updates =
+        xs
+        . splitOn '\n'
+        . map #(\line -> line . splitOn ',' . map #parse_int . toVec)
+    }
+
+  | _ -> io:crash ("unexpected: " <> input)
+
+fn is_correct rules pages as Rules, Vec int -> bool =
+  checkPage 0
+ where
+  fn checkPage i = 
+    match pages . get i
+    | Nothing -> true
+    | Just n  -> 
+        rules . all #(checkRule pages i n) && checkPage (i+1)
+
+fn checkRule pages i n (x, y) as Vec int, uint, int, (int, int) -> bool = 
+  if x == n then
+    pages . to_slice . take i . all #(\p -> p /= y)
+  else if y == n then
+    pages . to_slice . skip i . all #(\p -> p /= x)
+  else
+    true
+    
+fn part1 input as string -> int = 
+  let m = parse input in
+    m.updates
+    . keep #(is_correct m.rules)
+    . map #(\pages -> pages . get (pages.len / 2) . or #0)
+    . sum
+
+fn fixPages rules pages as Rules, Vec int -> [int] = 
+  pages . to_slice . to_list . sortBy #(sortByRules rules)
+  . io:trace
+
+fn sortByRules rules lhs rhs as Rules, int, int -> Ordering =
+  if rules . any #(\(x, y) -> lhs == y && rhs == x) then
+    Ordering:Greater
+  else
+    Ordering:Equal
+
+fn part2 input as string -> int = 
+  let m = parse input in
+    m.updates
+    . keep #(\pages -> not (is_correct m.rules pages))
+    . map #(fixPages m.rules)
+    . map #(\pages -> pages . get (pages . len / 2) . or #0)
+    . sum
