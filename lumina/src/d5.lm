@@ -51,7 +51,6 @@ fn part1 input as string -> int =
 
 fn fixPages rules pages as Rules, Vec int -> [int] = 
   pages . to_slice . to_list . sortBy #(sortByRules rules)
-  . io:trace
 
 fn sortByRules rules lhs rhs as Rules, int, int -> Ordering =
   if rules . any #(\(x, y) -> lhs == y && rhs == x) then

@@ -43,3 +43,18 @@ fn fold f acc {lines} as fn(o, (int, int), a -> o), o, Matrix a -> o =
       match line_ . get (x as uint)
       | Nothing    -> next (0, y + 1) acc
       | Just point -> next (x + 1, y) (f acc (x, y) point) 
+
+fn find f m as fn(a -> bool), Matrix a -> Maybe (uint, uint, a) = 
+  seek 0 0
+ where
+  fn seek x y = 
+    match m . get (x, y)
+    | Nothing -> 
+      if x == 0
+        then Nothing
+        else seek 0 (y + 1)
+    | Just c -> 
+      if f c
+        then Just (x, y, c)
+        else seek (x + 1) y
+

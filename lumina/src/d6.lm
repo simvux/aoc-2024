@@ -1,0 +1,83 @@
+use std:io
+use project:util [splitOn]
+use project:matrix [Matrix]
+use std:list [toVec, from_range]
+use std:string [toByteVec, <:>]
+use std:list:vec [Vec]
+
+type Cursor {
+  x int
+  y int
+  c u8
+}
+
+fn parse input as string -> (Matrix u8, Cursor) =
+  let m = input . splitOn '\n' . map #toByteVec . toVec . matrix:fromLines in
+    match m . find #(\c -> c /= '.' && c /= '#')
+    | Nothing -> io:crash "cursor not found"
+    | Just (x, y, c) -> (m, { x = x as int, y = y as int, c })
+
+fn next c as Cursor -> Cursor = 
+  match c.c
+  | '^' -> { c ~ y@y = y - 1 }
+  | 'v' -> { c ~ y@y = y + 1 }
+  | '<' -> { c ~ x@x = x - 1 }
+  | '>' -> { c ~ x@x = x + 1 }
+  |  c  -> io:crash ("invalid cursor: " <> c)
+
+fn rotate c as Cursor -> Cursor =
+  match c.c
+  | '^' -> { c ~ y@y = y + 1, c = '>' }
+  | 'v' -> { c ~ y@y = y - 1, c = '<' }
+  | '<' -> { c ~ x@x = x + 1, c = '^' }
+  | '>' -> { c ~ x@x = x - 1, c = 'v' }
+  |  c  -> io:crash ("invalid cursor: " <> c)
+
+fn part1 input as string -> uint = 
+  let (m, c) = parse input in
+    traverse [] m c . len
+ where
+  fn traverse n m cursor as [(int, int)], Matrix u8, Cursor -> [(int, int)] = 
+    match m . gets (cursor.x, cursor.y)
+    | Nothing  -> n
+    | Just '#' -> traverse n m (rotate cursor)
+    | Just  _  -> traverse (mark (cursor.x, cursor.y) n) m (next cursor)
+
+fn mark c list as (int, int), [(int, int)] -> [(int, int)] =
+  if list . any #(\cc -> cc.0 == c.0 && cc.1 == c.1)
+    then list
+    else c : list
+
+fn part2 input as string -> uint = 
+  let (m, c) = parse input in
+  let height = m.lines.len in
+  let width  = (m.lines . get 0 . or #vec:empty).len in
+    from_range (0, height) #(\i -> i as int)
+    . map #(\y ->
+        let xs = from_range (0, width) #(\i -> i as int) in
+          xs . count #(\x -> neverending (new_blacklist height) (x, y) m c)
+        )
+    . sum
+
+fn new_blacklist y as uint -> Blacklist = vec:from_range (0, y as uint) #(\_ -> [])
+
+alias Blacklist = Vec [(int, u8)]
+
+fn update_blacklist c list as Cursor, Blacklist -> Maybe Blacklist = 
+  let line = list . get (c.y as uint) . or_crash "line missing from blacklist" in
+    if line . any #(\(x, dir) -> c.x == x && dir == c.c)
+      then Nothing
+      else do vec:unsafe_set (c.y as uint) ((c.x, c.c) : line) list then Just list
+
+fn neverending blacklist (x, y) m cursor as Blacklist, (int, int), Matrix u8, Cursor -> bool = 
+  match m . gets (cursor.x, cursor.y)
+  | Nothing  -> false
+  | Just '#' -> neverending blacklist (x, y) m (rotate cursor)
+  | Just  c  -> 
+    if cursor.x == x && cursor.y == y
+      then neverending blacklist (x, y) m (rotate cursor)
+      else 
+        match update_blacklist cursor blacklist
+        | Nothing -> true
+        | Just updated -> neverending updated (x, y) m (next cursor)
+    
