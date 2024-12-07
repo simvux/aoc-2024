@@ -1,0 +1,44 @@
+use project:util [splitOn]
+use std:char [is_number]
+use std:string [parse_int]
+
+fn part1 input as string -> uint = 
+  parse input . calibrate #(is_possible 0 [#+, #*])
+
+fn part2 input as string -> uint = 
+  parse input . calibrate #(is_possible 0 [#+, #*, #nconcat])
+
+when a can ToString
+fn nconcat sum x as a, a -> uint = (parse_int (sum <> x)) as uint
+
+fn calibrate check equations as fn(Equation -> bool), [Equation] -> uint =
+  equations
+  . keep #check
+  . map #(\{result} -> result)
+  . sum
+
+fn is_possible sum checks {result, nums} as uint, [fn(uint, uint -> uint)], Equation -> bool = 
+  match nums
+  | []       -> result == sum
+  | [x : xs] -> 
+    if sum == 0 then
+      is_possible x checks { result, nums = xs }
+    else
+      sum <= result &&
+        checks . any #(\f -> is_possible (f sum x) checks {result, nums = xs})
+
+type Equation {
+  result uint
+  nums   [uint]
+}
+
+fn parse input as string -> [Equation] = 
+  input . splitOn '\n' . map #parseLine
+ where
+  fn parseLine line = 
+    match line
+    | #is_number@r ": " nums ->
+      { result = (parse_int r) as uint
+      , nums = splitOn ' ' nums . map #(\n -> (parse_int n) as uint)
+      }
+    | _ -> io:crash "parse failure"
