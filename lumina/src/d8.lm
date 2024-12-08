@@ -1,0 +1,82 @@
+use project:matrix [Matrix]
+use std:string [toByteVec, <:>]
+use std:list [flat_map]
+use std:list:vec
+use project:util [splitOn]
+
+type Grid {
+  height int
+  width  int
+  ants   [Antenna]
+}
+
+type Antenna {
+  id u8
+  coords [(int, int)]
+}
+
+impl ToString for Antenna
+  fn show {id, coords} as self -> string =
+    (id <:> "") <> coords
+
+fn parse (x, y) input as (int, int), [u8] -> Grid = 
+  match input
+  | ['\n' : xs] -> { parse (0, y + 1) xs ~ width = x }
+  | ['.'  : xs] -> parse (x + 1, y) xs
+  | [ant  : xs] -> { parse (x + 1, y) xs ~ ants@ants = consExclusive (ant, x, y) ants }
+  | [] -> { height = y, width = x, ants = [] }
+
+fn consExclusive (id, x, y) ants as (u8, int, int), [Antenna] -> [Antenna] =
+  match ants
+  | [ant : xs] -> 
+    if ant.id == id
+      then { ant ~ coords@c = (x, y) : c } : xs
+      else ant : consExclusive (id, x, y) xs
+  | [] -> 
+    [{ id, coords = [(x, y)] }]
+
+fn antinodes coords as [(int, int)] -> [(int, int)] = 
+  match coords
+  | [(x, y) : xs] -> 
+    flat_map #(calc_antinodes (x, y)) xs ++ antinodes xs
+  | [] -> []
+
+fn calc_antinodes (x, y) (a, b) as (int, int), (int, int) -> [(int, int)] = 
+  let (diffx, diffy) = (x - a, y - b) in
+    [(a - diffx, b - diffy), (x + diffx, y + diffy)]
+
+fn within_bounds w h (x, y) as int, int, (int, int) -> bool =
+  x > -1 && y > -1 && x < w && y < h
+
+fn part1 input as string -> uint = 
+  let m = parse (0, 0) input.inner in
+    m.ants
+    . flat_map #(\ant -> antinodes ant.coords)
+    . keep #(within_bounds m.width m.height)
+    . deduplicate #(\(x, y) (a, b) -> x == a && y == b)
+    . len
+          
+fn part2 input as string -> uint = 
+  let m = parse (0, 0) input.inner in
+    m.ants
+    . flat_map #(\ant -> antinodes2 (m.width, m.height) ant.coords)
+    . keep #(within_bounds m.width m.height)
+    . deduplicate #(\(x, y) (a, b) -> x == a && y == b)
+    . len
+
+fn antinodes2 (w, h) coords as (int, int), [(int, int)] -> [(int, int)] = 
+  match coords
+  | [(x, y) : xs] ->
+    flat_map #(calc_antinodes2 (w, h) (x, y)) xs ++ antinodes2 (w, h) xs
+  | [] -> []
+
+fn calc_antinodes2 (w, h) (x, y) (a, b) as (int, int), (int, int), (int, int) -> [(int, int)] = 
+  let (diffx, diffy) = (x - a, y - b) in
+    increment_until_end (w, h) (x, y) (diffx, diffy)
+    ++ increment_until_end (w, h) (x, y) (diffx - (diffx * 2), diffy - (diffy * 2))
+  
+fn increment_until_end (w, h) (x, y) (offx, offy) as (int, int), (int, int), (int, int) -> [(int, int)] = 
+  if x < 0 || y < 0 || x >= w || y >= h
+    then []
+    else
+      (x, y) : increment_until_end (w, h) (x + offx, y + offy) (offx, offy)

@@ -18,6 +18,11 @@ fn get (x, y) {lines} as (uint, uint), Matrix a -> Maybe a =
   . get (y as uint)
   . and #(\line -> line . get (x as uint))
 
+fn set (x, y) v {lines} as (uint, uint), a, Matrix a -> () = 
+  match lines . get (y as uint)
+  | Just line -> vec:unsafe_set x v line
+  | Nothing -> io:crash ("out of bounds: " <> (x, y))
+
 fn ^ (x, y) (x_, y_) as (int, int), (int, int) -> (int, int) =
   (x + x_, y + y_)
 
@@ -44,6 +49,17 @@ fn fold f acc {lines} as fn(o, (int, int), a -> o), o, Matrix a -> o =
       | Nothing    -> next (0, y + 1) acc
       | Just point -> next (x + 1, y) (f acc (x, y) point) 
 
+fn for_each f {lines} as fn((int, int), a -> ()), Matrix a -> () =
+  next (0, 0)
+ where
+  fn next (x, y) = 
+    match lines . get (y as uint)
+    | Nothing   -> ()
+    | Just line_ -> 
+      match line_ . get (x as uint)
+      | Nothing    -> next (0, y + 1) 
+      | Just point -> do f (x, y) point then next (x + 1, y)
+
 fn find f m as fn(a -> bool), Matrix a -> Maybe (uint, uint, a) = 
   seek 0 0
  where
@@ -58,3 +74,10 @@ fn find f m as fn(a -> bool), Matrix a -> Maybe (uint, uint, a) =
         then Just (x, y, c)
         else seek (x + 1) y
 
+
+impl ToString for Matrix u8
+  fn show m as self -> string =
+    m.lines
+    . to_slice
+    . to_list
+    . fold #(\acc line -> acc <> "\n" <> std:string:fromByteVec line) ""
