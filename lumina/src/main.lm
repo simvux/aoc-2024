@@ -3,10 +3,8 @@ use std:fs
 
 fn workdir = "/home/simon/code/aoc2024/"
 
-fn input = "d8/real"
-use d8 solution
-
-// 116, 115, both too low
+fn input = "d9/test"
+use d9 solution
 
 fn read_input = 
   let path = workdir <> "inputs/" <> input in

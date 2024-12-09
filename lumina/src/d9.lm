@@ -1,0 +1,102 @@
+use std:list [from_range]
+use std:char [to_digit]
+use std:string [<:>]
+
+type Block = Free int | Used int int
+
+// SUMMARY OF FAILURE
+//
+// The way lists currently work in Lumina is that it performs the minimal effort possible when concatinating
+// However; in this case that results in an extremely deep `List:Concat` tree. The functions that then
+// act upon that tree aren't tail-recursive. So; any approach to this problem with the current `List`
+// will result in a segmentation fault. 
+
+fn parse blocks id input as [Block], int, string -> [Block] = 
+  match input
+  | "\n" _ -> blocks
+  | "" -> blocks
+
+  | n xs -> 
+    let size = (to_digit n) as int in 
+    let this = 
+      if is_even (id as int)
+        then Used size (id / 2)
+        else Free size
+    in
+      parse (blocks ++ [this]) (id + 1) xs
+    
+  | _ -> io:crash "parse error"
+
+fn is_even x = x % 2 == 0
+
+fn part1 input as string -> int = 
+  let blocks = parse [] 0 input in
+    // do io:println (bshow "" blocks) then
+    // do io:println "" then
+    // do io:println (bshow "" (reformat blocks)) then
+    // do io:println "" then
+      let (sum, _) = reformat blocks . fold #hash (0, 0)
+      in sum
+
+fn hash (acc, i) blocks as (int, int), Block -> (int, int) =
+  match blocks
+  | Used used uid -> 
+    let hash = hash_file used uid i in
+    do io:println ("hash of " <> uid <> " : " <> hash)
+      then (acc + hash, i + used)
+  | Free _ -> (acc, i + 1)
+
+fn hash_file used uid i as int, int, int -> int = 
+  from_range (0, used as uint) #(\n -> (n as int) + i) . map #(\i -> i * uid) . sum
+  
+
+fn reformat disk as [Block] -> [Block] = 
+  match split_at_last_used disk false
+
+  | (Just file, disk) -> 
+    use_first_available file disk
+    . reformat
+
+  | (Nothing, disk) -> disk
+
+fn use_first_available (used, uid) blocks as (int, int), [Block] -> [Block] = 
+  match blocks
+  | [Free free : xs] -> 
+    let remaining = used - free in
+      match compare remaining 0
+      | Ordering:Equal -> Used used uid : xs
+      | Ordering:Less  -> [Used used uid, Free (remaining . abs)] ++ xs
+      | Ordering:Greater -> Used (used - remaining) uid : use_first_available (remaining, uid) xs
+  | [x : xs] -> x : use_first_available (used, uid) xs
+  | [] -> []
+
+fn split_at_last_used blocks fragmented as [Block], bool -> (Maybe (int, int), [Block]) = 
+  match blocks
+  | [] -> (Nothing, [])
+  | [Free free : xs] ->
+    let (m, xs) = split_at_last_used xs true
+     in (m, Free free : xs)
+  | [Used used uid : xs] ->
+    match split_at_last_used xs fragmented
+    | (Just last, xs) -> 
+      (Just last, Used used uid : xs)
+    | (Nothing, _) ->
+      if fragmented
+        then (Just (used, uid), xs)
+        else (Nothing, Used used uid : xs)
+
+
+fn part2 _ as string -> int = 0
+
+fn bshow str blocks as string, [Block] -> string = 
+  match blocks
+  | [x : xs] -> bshow (str <> x) xs
+  | [] -> str
+
+impl ToString for Block
+  fn show block = 
+    match block
+    | Free n ->
+      { string | inner = from_range (0, n as uint) #(\_ -> '.') }
+    | Used n id ->
+      { string | inner = from_range (0, n as uint) #(\_ -> char:from_digit (id as uint)) }
