@@ -60,20 +60,26 @@ fn for_each f {lines} as fn((int, int), a -> ()), Matrix a -> () =
       | Nothing    -> next (0, y + 1) 
       | Just point -> do f (x, y) point then next (x + 1, y)
 
-fn find f m as fn(a -> bool), Matrix a -> Maybe (uint, uint, a) = 
+fn find f m as fn(a -> bool), Matrix a -> [(uint, uint, a)] = 
   seek 0 0
  where
   fn seek x y = 
     match m . get (x, y)
     | Nothing -> 
       if x == 0
-        then Nothing
+        then []
         else seek 0 (y + 1)
     | Just c -> 
       if f c
-        then Just (x, y, c)
+        then (x, y, c) : seek (x + 1) y
         else seek (x + 1) y
 
+pub fn adjecent (x, y) m as (int, int), Matrix a -> [Maybe (uint, uint, a)] =
+  [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+  . map #(\(x, y) -> gets (x, y) m . map #(\c -> (x as uint, y as uint, c)))
+
+pub fn clone {lines} as Matrix a -> Matrix a = 
+  { lines = lines . map #(\line -> line . clone) }
 
 impl ToString for Matrix u8
   fn show m as self -> string =
@@ -81,3 +87,10 @@ impl ToString for Matrix u8
     . to_slice
     . to_list
     . fold #(\acc line -> acc <> "\n" <> std:string:fromByteVec line) ""
+
+impl ToString for Matrix u16
+  fn show m as self -> string =
+    m.lines
+    . to_slice
+    . to_list
+    . fold #(\acc line -> acc <> "\n" <> list:fold #<> "" (line . to_slice . to_list)) ""

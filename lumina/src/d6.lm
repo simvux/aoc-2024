@@ -14,8 +14,8 @@ type Cursor {
 fn parse input as string -> (Matrix u8, Cursor) =
   let m = input . splitOn '\n' . map #toByteVec . toVec . matrix:fromLines in
     match m . find #(\c -> c /= '.' && c /= '#')
-    | Nothing -> io:crash "cursor not found"
-    | Just (x, y, c) -> (m, { x = x as int, y = y as int, c })
+    | [] -> io:crash "cursor not found"
+    | [(x, y, c) : _] -> (m, { x = x as int, y = y as int, c })
 
 fn next c as Cursor -> Cursor = 
   match c.c

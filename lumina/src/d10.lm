@@ -1,0 +1,40 @@
+use project:matrix [Matrix]
+use project:util [splitOn]
+use std:char [to_digit]
+
+fn parse input as string -> Matrix u16 =
+  input
+  . splitOn '\n'
+  . map #(\line -> line.inner . map #(\c -> if c == '.' then 100 else (to_digit c) as u16) . toVec)
+  . toVec . matrix:fromLines
+
+fn part1 input as string -> uint = 
+  let m = parse input in
+  let trailheads = m . find #(\n -> n == 0) in
+    trailheads . map #(\point -> score_of true point (m . clone)) . sum
+
+fn score_of ban_visited (x, y, n) m as bool, (uint, uint, u16), Matrix u16 -> uint = 
+  m
+  . adjecent (x as int, y as int)
+  . fold #(\total mpoint ->
+    match mpoint
+    | Nothing -> total
+    | Just point -> 
+      if point.2 == 9 && n == 8 then
+        ban_and_then point #(\ -> total + 1)
+      else if point.2 == n + 1 then
+        ban_and_then point #(\ -> total + score_of ban_visited point m)
+      else 
+        total
+    )
+    0
+ where
+  fn ban_and_then p f as (uint, uint, u16), fn(uint) -> uint = 
+    if ban_visited
+      then do m . set (p.0, p.1) 0 then f
+      else f
+
+fn part2 input as string -> uint =
+  let m = parse input in
+  let trailheads = m . find #(\n -> n == 0) in
+    trailheads . map #(\point -> score_of false point (m . clone)) . sum
