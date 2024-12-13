@@ -75,11 +75,17 @@ fn find f m as fn(a -> bool), Matrix a -> [(uint, uint, a)] =
         else seek (x + 1) y
 
 pub fn adjecent (x, y) m as (int, int), Matrix a -> [Maybe (uint, uint, a)] =
-  [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+  adjecentc (x, y)
   . map #(\(x, y) -> gets (x, y) m . map #(\c -> (x as uint, y as uint, c)))
 
+pub fn adjecentc (x, y) as (int, int) -> [(int, int)] =
+  [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+
 pub fn clone {lines} as Matrix a -> Matrix a = 
-  { lines = lines . map #(\line -> line . clone) }
+  { lines = lines . map #(\line -> vec:clone line) }
+
+pub fn map f {lines} as fn(a -> b), Matrix a -> Matrix b = 
+  { lines = lines . map #(\line -> line . map #f) }
 
 impl ToString for Matrix u8
   fn show m as self -> string =

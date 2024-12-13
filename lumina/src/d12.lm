@@ -1,0 +1,83 @@
+use project:matrix [Matrix, adjecentc]
+use project:util [splitOn]
+use std:list:vec [Vec]
+use std:list 
+use std:string [toByteVec, <:>]
+use std:math:i64 [abs]
+
+fn parse input as string -> Matrix u8 =
+  input . splitOn '\n' . map #toByteVec . toVec . matrix:fromLines
+
+fn part1 input as string -> uint = 
+  let m = parse input in
+    discover_regions m (m . map #(\_ -> false))
+    . fold #cost 0
+ where
+  fn cost c {plots, vertical, horizontal, plant} as uint, Region -> uint = 
+    let area  = plots . len in
+    let perim = (vertical . len) + (horizontal . len) in
+    let price = area * perim in
+       c + price
+
+fn part2 input as string -> uint = 
+  let m = parse input in
+    discover_regions m (m . map #(\_ -> false))
+    . fold #cost 0
+ where
+  fn cost c {plots, vertical, horizontal, plant} as uint, Region -> uint = 
+    let area = plots . len in
+    let (vcount, hcount) = ((vertical . sortBy #compare . xcount), (horizontal . sortBy #compare . xcount)) in
+    let price = area * (vcount + hcount) in
+       c + price
+
+  fn xcount sides as [(int, int)] -> uint = 
+    match sides
+    | [(x, y) : xs] ->
+      if should_skip (x, y) xs then
+        xcount xs
+      else
+        1 + xcount xs
+        
+    | [] -> 0
+
+fn should_skip (x, y) xs as (int, int), [(int, int)] -> bool = 
+    xs . any #(\p -> x == p.0 && (y + 1) == p.1)
+
+type Region {
+  plant u8
+  plots [(int, int)]
+  vertical [(int, int)]
+  horizontal [(int, int)]
+}
+
+fn discover_regions m visited as Matrix u8, Matrix bool -> [Region] = 
+  m . fold #of [] . keep #(\{plots} -> plots . len /= 0)
+ where
+  fn of regions point name as [Region], (int, int), u8 -> [Region] = 
+    let plant = m . gets point . or_crash "" in
+    let region = discover_region { plant, plots = [], vertical = [], horizontal = [] } point in
+      (region : regions)
+
+  fn discover_region region point as Region, (int, int) -> Region = 
+    match visited . gets point
+    | Nothing   -> region
+    | Just true -> region
+    | Just false ->
+      do visited . set (point.0 as uint, point.1 as uint) true then
+        adjecentc point
+        . fold #(\region (x, y) -> 
+             match m . gets (x, y)
+             | Nothing ->
+               if point.0 == x
+                 then { region ~ horizontal@hor = (y, x) : hor }
+                 else { region ~ vertical@vert  = (x, y) : vert }
+              
+             | Just p ->
+               if p /= region.plant then
+                 if point.0 == x
+                   then { region ~ horizontal@hor = (y, x) : hor }
+                   else { region ~ vertical@vert  = (x, y) : vert }
+                 
+               else
+                   discover_region region (x as int, y as int)
+        ) { region ~ plots@plots = point : plots }
