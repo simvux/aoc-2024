@@ -1,0 +1,56 @@
+use project:util [splitOn]
+use std:char [is_number]
+use std:string [parse_int]
+
+fn parse input as string -> [Machine] = 
+  input . splitOn '\n' . lines
+
+fn lines line as [string] -> [Machine] = 
+  match line
+  | [a, b, p : xs] -> 
+    { a = button a, b = button b, prize = prize p } : lines (xs . skip 1)
+  | [] -> []
+  | other -> io:crash ("unknown " <> other)
+
+fn button input as string -> (int, int) = 
+  match input
+  | "Button " _ ": X+" #is_number@x ", Y+" #is_number@y -> (parse_int x, parse_int y)
+  | _ -> io:crash ("not a button: " <> input)
+
+fn prize input as string -> (int, int) = 
+  match input
+  | "Prize: X=" #is_number@x ", Y=" #is_number@y -> (parse_int x, parse_int y)
+  | _ -> io:crash ("not a prize: " <> input)
+
+type Machine {
+  a (int, int)
+  b (int, int)
+  prize (int, int)
+}
+
+impl ToString for Machine
+  fn show {a, b, prize} = 
+    "{ " <> "A: " <> a <> ", B: " <> b <> ", Prize: " <> prize <> " }"
+
+fn part1 input as string -> int = 
+  let machines = parse input in
+    machines . fold #fewest 0
+
+fn part2 input as string -> int = 0
+
+fn fewest total m as int, Machine -> int = 
+  do io:println ("checking fewest of " <> m) then
+  mash (0, 0)
+ where
+  fn mash (an, bn) as (int, int) -> int = 
+    let xsum = (m.a.0 * an) + (m.b.0 * bn) in
+    let ysum = (m.a.1 * an) + (m.b.1 * bn) in
+      if xsum == m.prize.0 && ysum == m.prize.1 then
+        (an * 3) + bn + total
+      else if xsum > m.prize.0 || ysum > m.prize.1 then
+        if bn == 0
+          then total
+          else mash (an + 1, 0)
+      else
+        mash (an, bn + 1)
+
