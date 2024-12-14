@@ -3,8 +3,8 @@ use std:fs
 
 fn workdir = "/home/simon/code/aoc2024/"
 
-fn input = "d13/test"
-use d13 solution
+fn input = "d14/real"
+use d14 solution
 
 fn read_input = 
   let path = workdir <> "inputs/" <> input in

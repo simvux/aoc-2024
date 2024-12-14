@@ -7,6 +7,13 @@ type Matrix a {
 
 fn fromLines lines as Vec (Vec a) -> Matrix a = { lines }
 
+fn fromSize width height default_ as uint, uint, a -> Matrix a = 
+  { lines =
+    vec:from_range
+      (0, height)
+      #(\_ -> vec:from_range (0, width) #(\_ -> default_))
+  }
+
 // Get a point of the matrix. Negative coordinates always return Nothing
 fn gets (x, y) m as (int, int), Matrix a -> Maybe a =
   if y < 0 || x < 0
@@ -22,6 +29,21 @@ fn set (x, y) v {lines} as (uint, uint), a, Matrix a -> () =
   match lines . get (y as uint)
   | Just line -> vec:unsafe_set x v line
   | Nothing -> io:crash ("out of bounds: " <> (x, y))
+
+when a can Compare
+fn contains_line to_find m as [a], Matrix a -> bool = 
+  let flen = to_find . len in
+  m.lines
+  . to_slice
+  . any #(\line -> check_line (line . to_slice . to_list))
+ where
+  fn check_line line as [a] -> bool = 
+    let (of_same_len, rest) = line . split_at flen in
+      match of_same_len
+      | [] -> false
+      | [x : xs] -> 
+        (of_same_len == to_find)
+        || check_line (xs ++ rest)
 
 fn ^ (x, y) (x_, y_) as (int, int), (int, int) -> (int, int) =
   (x + x_, y + y_)
@@ -84,8 +106,8 @@ pub fn adjecentc (x, y) as (int, int) -> [(int, int)] =
 pub fn clone {lines} as Matrix a -> Matrix a = 
   { lines = lines . map #(\line -> vec:clone line) }
 
-pub fn map f {lines} as fn(a -> b), Matrix a -> Matrix b = 
-  { lines = lines . map #(\line -> line . map #f) }
+pub fn map f {lines} as fn((uint, uint), a -> b), Matrix a -> Matrix b = 
+  { lines = lines . to_slice . imap #(\y line -> line . to_slice . imap #(\x v -> f (x, y) v)) }
 
 impl ToString for Matrix u8
   fn show m as self -> string =

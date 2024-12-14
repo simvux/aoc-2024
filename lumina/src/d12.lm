@@ -10,7 +10,7 @@ fn parse input as string -> Matrix u8 =
 
 fn part1 input as string -> uint = 
   let m = parse input in
-    discover_regions m (m . map #(\_ -> false))
+    discover_regions m (m . map #(\_ _ -> false))
     . fold #cost 0
  where
   fn cost c {plots, vertical, horizontal, plant} as uint, Region -> uint = 
@@ -21,7 +21,7 @@ fn part1 input as string -> uint =
 
 fn part2 input as string -> uint = 
   let m = parse input in
-    discover_regions m (m . map #(\_ -> false))
+    discover_regions m (m . map #(\_ _ -> false))
     . fold #cost 0
  where
   fn cost c {plots, vertical, horizontal, plant} as uint, Region -> uint = 

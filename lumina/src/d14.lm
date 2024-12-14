@@ -1,0 +1,121 @@
+use project:util [splitOn]
+use project:matrix [Matrix]
+use std:char [is_number]
+use std:string [parse_int, <:>, <++>]
+use std:list [ifold]
+
+// FAILURE SUMMARY: 
+//
+// Lumina currently doesn't have a garbage collector. 
+//
+// I tried to implement this in a way that leaks as little memory as possible, but I'm unable
+// to get to the final result without running out of ram. 
+//
+// I have another idea of how to very nicely do this with binary trees. But that doesn't have
+// a Lumina implementation yet... 
+
+type Robot {
+  p (int, int)
+  v (int, int)
+}
+
+impl ToString for Robot
+  fn show {p, v} = p <> v
+
+fn parse input as string -> [Robot] =
+  input . splitOn '\n' . map #robot
+ where
+  fn robot line = 
+    match line
+    | "p=" #is_number@px "," #is_number@py " v=" #is_number@vx "," #is_number@vy ->
+      { Robot | p = (parse_int px, parse_int py), v = (parse_int vx, parse_int vy) }
+    | _ -> io:crash ("parse error: " <> line)
+
+fn part1 input as string -> uint = 
+  let robots = parse input in 
+    ifold #(\robots _ -> robots . map #second) robots 100
+    . safety_factor
+
+fn part2 input as string -> uint = 
+  let robots = parse input in 
+  let matrix = matrix:fromSize ((max.0 as uint) + 1) ((max.1 as uint) + 1) '.' in
+    iteration matrix robots 0
+ where
+  fn iteration matrix robots i as Matrix u8, [Robot], uint -> uint = 
+    do io:println i then
+    do reset matrix then
+    do fill_robots matrix robots then
+    if could_be_tree (0, 0) matrix then
+        do io:println matrix then
+        do io:println ("iteration " <> i <> " type `y` to accept") then
+        let input = io:readln in
+          do io:println input then
+          if input == "y"
+            then i
+            else iteration matrix (robots . map #second) (i + 1)
+    else 
+        iteration matrix (robots . map #second) (i + 1)
+
+fn reset m as Matrix u8 -> () = 
+  m . for_each #(\(x, y) _ -> m . set (x as uint, y as uint) '.')
+
+val max = (101 - 1, 103 - 1)
+
+fn second {v, p} as Robot -> Robot = 
+  { v, p = (teleport_if_needed max.0 (p.0 + v.0), teleport_if_needed max.1 (p.1 + v.1)) }
+
+fn teleport_if_needed m x = 
+  if x < 0 then
+    m - (x . abs) + 1
+  else if x > m then
+    (x - m) - 1
+  else
+    x
+
+fn safety_factor robots as [Robot] -> uint = 
+  do io:println ("getting safety factor of:\n" <> robots) then
+  let (a, b, c, d) = quadrants robots
+   in a . len * b . len * c . len * d . len
+
+fn quadrants robots as [Robot] -> ([Robot], [Robot], [Robot], [Robot]) =
+  let halfx = max.0 / 2 in
+  let halfy = max.1 / 2 in
+  robots
+  . fold #(\(tl, tr, bl, br) {p, v} ->
+      let top  = p.1 < halfy in
+      let left = p.0 < halfx in
+        if p.0 == halfx || p.1 == halfy then
+          (tl, tr, bl, br)
+        else if top && left then
+          ({p, v} : tl, tr, bl, br)
+        else if top then
+          (tl, {p, v} : tr, bl, br)
+        else if left then
+          (tl, tr, {p, v} : bl, br)
+        else
+          (tl, tr, bl, {p, v} : br)
+    )
+    ([], [], [], [])
+
+fn could_be_tree (x, y) m as (int, int), Matrix u8 -> bool = 
+  match m . gets (x, y)
+  | Just '#' -> 
+    (checkx (x + 1, y) m && checkx (x + 2, y) m && checkx (x + 3, y) m)
+    || could_be_tree (x + 4, y + 4) m
+  | Just _   -> could_be_tree (x + 4, y + 4) m
+  | Nothing -> false
+    
+fn checkx (x, y) m as (int, int), Matrix u8 -> bool = 
+  match m . gets (x, y)
+  | Just '#' -> true
+  | _ -> false
+  
+fn fill_robots m robots as Matrix u8, [Robot] -> () = 
+  m
+  . for_each #(
+      \(x, y) _ ->
+        let matches = robots . any #(\{p} -> p.0 == x && p.1 == y) in
+          if matches
+            then m . set (x as uint, y as uint) '#'
+            else ()
+  ) 
