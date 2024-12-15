@@ -1,0 +1,121 @@
+use project:util [splitOn]
+use project:matrix [Matrix]
+use std:list [toVec]
+use std:list:vec [Vec]
+use std:string [<:>, <+>]
+
+fn part1 input as string -> int = 
+  let (m, instr) = parse input false in
+    let (_, m) = eval instr m in
+       m . fold #(\n (x, y) c -> if c == 'O' then n + (100 * y + x) else n) 0
+
+fn part2 input as string -> int = 
+  let (m, instr) = parse input true in 
+    do io:println m then
+       m . fold #(\n (x, y) c -> if c == 'O' then n + (100 * y + x) else n) 0
+
+fn parse input is_two as string, bool -> (Matrix u8, [u8]) = 
+  let (lines, instr) = splitOn '\n' input . fold #parseLine ([], [])
+   in (matrix:fromLines (lines . toVec), instr)
+ where
+  fn parseLine (grid, instr) line = 
+    match line
+    | "#" xs -> 
+      let line = ('#' : xs.inner) . mtransform_to_p2 in
+      (grid ++ [line . toVec], instr)
+    | instructions -> (grid, (instr ++ (instructions.inner . keep #(/= '\n'))))
+
+  fn mtransform_to_p2 line =
+    if is_two then
+      line
+      . flat_map #( \c -> 
+            match c
+            | '#' -> ['#', '#']
+            | 'O' -> ['[', ']']
+            | '.' -> ['.', '.']
+            | '@' -> ['@', '.']
+            | _ -> io:crash "unknown tile"
+        )
+    else
+      line
+      
+fn get_start m as Matrix u8 -> _ = 
+  match m . find #(== '@')
+  | [start] -> start
+  | _ -> io:crash "no or multiple robots"   
+
+fn eval2 instrs m as [u8], Matrix u8 -> ((uint, uint), Matrix u8) = 
+  let (x, y, symbol) = get_start m
+   in (instrs . fold #(move_robot true m) (x, y), m)
+
+fn offset (x, y) instr as (uint, uint), u8 -> (uint, uint) =
+  match instr
+  | '^' -> (x, y - 1)
+  | 'v' -> (x, y + 1)
+  | '<' -> (x - 1, y)
+  | '>' -> (x + 1, y)
+  | _   -> io:crash ("unknown direction" <> instr)
+
+fn eval instrs m as [u8], Matrix u8 -> ((uint, uint), Matrix u8) = 
+  let (x, y, symbol) = get_start m
+   in (instrs . fold #(move_robot false m) (x, y), m)
+
+fn gps_coordinate (x, y) as (uint, uint) -> uint = 100 * y + x
+
+fn move_robot is_two m point instr as bool, Matrix u8, (uint, uint), u8 -> (uint, uint) =
+  do io:println m then
+  let changed = if is_two then next2 '@' point m instr else next '@' point m instr
+   in if changed then offset point instr else point
+
+fn next2 symbol (x, y) m instr as u8, (uint, uint), Matrix u8, u8 -> bool = 
+  do io:println (x, y) then
+  do io:println ("moving " <> symbol <> instr) then
+  let p = offset (x, y) instr in
+    match m . get p . or_crash "escaped"
+    | '#' -> false
+    | '.' -> 
+      do io:println '.' then
+      do shift symbol (x, y) p m then
+        true
+    | '[' -> 
+      // do io:println '[' then
+      //  let changed = next '[' p m instr in
+      //    if changed
+      //      then do shift symbol (x, y) p m then true
+      //      else false
+    | ']' -> 
+      io:crash "todo"
+    | _ -> io:crash "unknown"
+
+ where
+  fn move_box p = 
+    match (a, b)
+    | ('.', '.') -> 
+      do shift '[' (x, y) p then
+         shift ']' (x + 1, y) (p.0 + 1, p.1)
+    | ()
+    
+  
+fn next symbol (x, y) m instr as u8, (uint, uint), Matrix u8, u8 -> bool = 
+  do io:println (x, y) then
+  do io:println ("moving " <> symbol <> instr) then
+  let p = offset (x, y) instr in
+    match m . get p . or_crash "escaped"
+    | '#' -> false
+    | '.' -> 
+      do io:println '.' then
+      do shift symbol (x, y) p m then
+        true
+    | 'O' -> 
+      do io:println 'O' then
+      let changed = next 'O' p m instr in
+        if changed
+          then do shift symbol (x, y) p m then true
+          else false
+    | _ -> io:crash "unknown"
+
+fn shift symbol from to m as u8, (uint, uint), (uint, uint), Matrix u8 -> () = 
+  let prev = m . get to . or_crash "escaped" in
+  do io:println ("shifting: " <> from <> symbol <> " -> . & " <> to <> prev <> " -> " <> symbol) then
+    do m . set from '.' then
+       m . set to symbol 
